@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cerebro</title>
+    <link rel="icon" href="/mylogo.png" type="image/jpeg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://acrobatservices.adobe.com/view-sdk/viewer.js"></script>
+    
+    <style>
+        .is-loading {
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex h-screen font-sans overflow-hidden">
+
+
+<aside class="w-1/3 bg-slate-800/80 p-6 flex flex-col h-full border-r border-slate-700 backdrop-blur-sm">
+    <header class="mb-6 flex items-center space-x-4">
+        <img src="/mylogo.png" alt="Cerebro logo" class="w-12 h-12 rounded-full shadow-lg" />
+        <div>
+            <h1 class="text-3xl font-bold text-cyan-400">Cerebro</h1>
+            <p class="text-sm text-slate-300">Your AI-powered research assistant.</p>
+        </div>
+    </header>
+
+    <div class="flex-grow overflow-y-auto">
+        <div id="document-management-container" class="space-y-6">
+
+            <div class="bg-slate-700/50 p-4 rounded-lg border border-gray-600">
+                <h2 class="text-lg font-semibold mb-3 text-gray-200">1. Manage Collections</h2>
+                
+                <div class="mb-3">
+                    <label for="collection-select" class="block text-sm font-medium text-gray-400 mb-1">Select Collection</label>
+                    <select id="collection-select" class="w-full bg-slate-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                </div>
+                
+                <div>
+                    <label for="new-collection-name" class="block text-sm font-medium text-gray-400 mb-1">Or Create New</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="new-collection-name" class="w-full bg-slate-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter collection name...">
+                        <button id="create-collection-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shrink-0">Create</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
+                <h2 class="text-lg font-semibold mb-3 text-gray-200">2. Manage Documents</h2>
+                
+                <label for="file-uploader" class="w-full mb-3 inline-block cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md text-center transition-colors">
+                    Add PDFs to Collection
+                </label>
+                <input type="file" id="file-uploader" class="opacity-0 w-0 h-0 absolute" multiple accept=".pdf">
+                <div id="file-list" class="text-sm text-gray-400 space-y-1 mb-3"></div>
+
+                <div>
+                    <label for="pdf-select" class="block text-sm font-medium text-gray-400 mb-1">Select Document to View</label>
+                    <div class="flex space-x-2">
+                        <select id="pdf-select" class="w-full bg-slate-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                        <button id="load-pdf-button" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md shrink-0">Load</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <details class="border-b border-slate-700 pb-4 mb-4">
+            <summary class="cursor-pointer text-lg font-semibold hover:text-blue-300">
+                View Document Outline
+            </summary>
+            <div id="outline-container" class="pt-4">
+                <div id="outline-content" class="text-gray-300 text-sm"></div>
+            </div>
+        </details>
+
+        <div id="search-container" class="mt-8">
+            <h2 class="text-lg font-semibold mb-3 pb-2 border-b  border-slate-600">Analyze Selection</h2>
+            
+            <button id="analyze-selection-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                Find Related Insights
+            </button>
+            
+            <div id="search-results-content" class="mt-4 text-gray-300 text-sm space-y-4"></div>
+
+            <div id="secondary-actions-container" class="hidden mt-6 pt-4 border-t border-gray-700">
+
+                <div class="flex border-b border-gray-600">
+                    <button id="show-insights-tab" class="py-2 px-4 text-sm font-medium text-gray-400 hover:text-white border-b-2 border-transparent hover:border-cyan-400">
+                        💡 Insights
+                    </button>
+                    <button id="show-podcast-tab" class="py-2 px-4 text-sm font-medium text-gray-400 hover:text-white border-b-2 border-transparent hover:border-purple-400">
+                        🎙️ Podcast
+                    </button>
+                </div>
+                
+                <div class="p-4 bg-gray-900/50 rounded-b-lg border border-t-0 border-gray-700 min-h-[100px]">
+                    <div id="insights-content-area">
+                        </div>
+                    <div id="podcast-content-area" class="hidden">
+                        </div>
+                </div>
+
+            </div>
+        </div>
+    </div>  
+</aside>
+
+
+    <main class="w-2/3 h-full bg-gray-700">
+        <div id="adobe-dc-view" class="w-full h-full"></div>
+    </main>
+
+<script type="text/javascript">
+
+    let adobeApiKey = null; // This will hold our key from the backend
+    let lastSelectedText = "";
+    let adobeDCView;
+    let pdfAPIs;
+    // This variable will track the state of our viewer
+    let currentPDF = { name: "", collection: "Collection_1" };
+    //  NEW LINE to track the outline polling process
+    let outlinePollingInterval = null;
+
+    let currentAnalysisResult = null; 
+
+
+ 
+    const ANNOTATION_PROFILE = {
+        /* Enable annotation tools in the viewer. */
+        showAnnotationTools: true,
+        /* Make the anntations panel visible by default */
+        showCommentsPanel: false,
+
+    };
+
+
+    document.addEventListener("adobe_dc_view_sdk.ready", initializeApp);
+
+    async function initializeApp() {
+        console.log("Adobe SDK is ready. Fetching server configuration...");
+        try {
+            //  Fetch the Adobe API Key from our backend
+            const response = await fetch('/api/config');
+            if (!response.ok) {
+                throw new Error("Could not fetch server configuration.");
+            }
+            const config = await response.json();
+            adobeApiKey = config.adobeApiKey;
+
+            if (!adobeApiKey) {
+                console.error("FATAL: Adobe API Key was not provided by the backend. PDF viewer will not work.");
+
+                document.getElementById('adobe-dc-view').innerHTML = 
+                    '<div style="color: red; padding: 20px;">Error: Adobe Embed API Key is not configured on the server.</div>';
+                return;
+            }
+
+            console.log("Configuration loaded. Populating collections...");
+
+            populateCollectionDropdown();
+
+        } catch (error) {
+            console.error("Failed to initialize the application:", error);
+        }
+    }
+
+
+    async function populateCollectionDropdown() {
+        try {
+            const response = await fetch(`/api/collections`);
+            const collections = await response.json();
+            const selectElement = document.getElementById('collection-select');
+            selectElement.innerHTML = ''; // Clear existing options
+
+            collections.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                selectElement.appendChild(option);
+            });
+
+            // If collections exist, automatically load the PDFs for the first one
+            if (collections.length > 0) {
+                const firstCollection = collections[0];
+                currentPDF.collection = firstCollection; // Update global state
+                populatePdfDropdown(firstCollection);
+            }
+        } catch (error) {
+            console.error("Failed to populate collection list:", error);
+        }
+    }
+
+
+
+
+    // This function populates the dropdown with available PDFs
+   async function populatePdfDropdown(collection) {
+    try {
+        const response = await fetch(`/api/pdfs/${encodeURIComponent(collection)}`);
+        const pdfFiles = await response.json();
+        const selectElement = document.getElementById('pdf-select');
+        selectElement.innerHTML = '';
+        pdfFiles.forEach(pdfName => {
+            const option = document.createElement('option');
+            option.value = pdfName;
+            option.textContent = pdfName;
+            selectElement.appendChild(option);
+        });
+
+        //  CHECK FOR EXISTING ANALYSIS RESULT ---
+        // After populating the PDFs, check the analysis status for this collection
+        fetch(`/api/analysis/status/${encodeURIComponent(collection)}`)
+            .then(res => res.json())
+            .then(statusData => {
+                if (statusData.status === 'complete') {
+                    // If a result exists, fetch and display it
+                    console.log(`Found existing analysis for ${collection}. Fetching...`);
+                    fetch(`/api/analysis/result/${encodeURIComponent(collection)}`)
+                        .then(res => res.json())
+                        .then(resultData => {
+                            displayAnalysisResult(resultData);
+                        });
+                } else {
+                    // If no result exists, clear the result area
+                    document.getElementById('analysis-result-content').innerHTML = `
+                        <p class="text-gray-500">Analysis will appear here once complete...</p>
+                    `;
+                }
+            });
+
+
+    } catch (error) { 
+        console.error("Failed to populate PDF list:", error); 
+    }
+}
+
+ 
+
+async function loadPdfAndOutline(collection, pdfName, pageToJumpTo = 1) {
+    if (!pdfName) return;
+
+    const cleanPdfName = pdfName.trim();
+    const targetPage = pageToJumpTo > 0 ? pageToJumpTo : 1;
+    const outlineContainer = document.getElementById('outline-container');
+
+    if (cleanPdfName !== currentPDF.name) {
+        console.log("Loading a new document...");
+        pdfAPIs = null;
+        lastSelectedText = "";
+        outlineContainer.classList.add('is-loading');
+        currentPDF.name = cleanPdfName;
+        currentPDF.collection = collection;
+
+        try {
+            const adobeDCView = new AdobeDC.View({ clientId: adobeApiKey, divId: "adobe-dc-view" });
+
+
+            const previewFilePromise = adobeDCView.previewFile({
+                content: { location: { url: `/api/pdf/${encodeURIComponent(collection)}/${encodeURIComponent(cleanPdfName)}` } },
+                metaData: { fileName: cleanPdfName, id: cleanPdfName }
+            }, { 
+                enableAnnotationAPIs: true
+            });
+
+            previewFilePromise.then(function (adobeViewer) {
+                // --- Get Core APIs ---
+                adobeViewer.getAPIs().then(function (apis) {
+                    pdfAPIs = apis;
+
+                // Now that the APIs are ready, check if we need to jump to a specific page.
+                if (targetPage > 1) {
+                    console.log(`PDF is ready. Navigating to page ${targetPage}...`);
+                    apis.gotoLocation(targetPage);
+                }
+
+                    
+                    // STEP 1: Listen for the SELECTION_END event
+                    apis.addEventListener("SELECTION_END", function() {
+                        console.log("LOG 1: SELECTION_END event fired. Calling getSelectedContent...");
+                        
+                        // After selection ends, get the content
+                        apis.getSelectedContent().then(function(result) {
+                            if (result && result.data) {
+                                lastSelectedText = result.data;
+                                console.log("LOG 1.1: SUCCESS. Text captured:", `"${lastSelectedText}"`);
+                            }
+                        }).catch(function(error) {
+                            console.error("LOG 1.2: FAILED to get selected content.", error);
+                        });
+                    });
+                });
+
+                // --- Get Annotation Manager ---
+                adobeViewer.getAnnotationManager().then(function (annotationManager) {
+                    
+                    // STEP 2: Listen for the highlight confirmation
+                    annotationManager.registerEventListener(function(event) {
+                        if (event.type === "ANNOTATION_ADDED") {
+                            console.log("LOG 2: ANNOTATION_ADDED event fired.");
+                            
+                            if (lastSelectedText) {
+                                console.log("LOG 3: SUCCESS! Using captured text for highlight:", `"${lastSelectedText}"`);
+                                
+                                // TODO: Trigger your feature here
+                                // For example: queryBySelection(lastSelectedText);
+
+                                lastSelectedText = ""; 
+                            } else {
+                                console.log("LOG 4: FAILURE. No text was captured before highlight was confirmed.");
+                            }
+                        }
+                    });
+                });
+            });
+            
+            document.getElementById('pdf-select').value = cleanPdfName;
+            outlineContainer.classList.remove('is-loading');
+
+        } catch (error) {
+            console.error("Failed to load PDF:", error);
+            outlineContainer.classList.remove('is-loading');
+        }
+
+        fetchOutline(collection, cleanPdfName);
+        
+    } else if (pdfAPIs && pageToJumpTo > 0) {
+        pdfAPIs.gotoLocation(targetPage);
+    }
+}
+
+
+
+    // This function fetches and displays the outline
+    async function fetchOutline(collection, pdfName) {
+        const outlineContent = document.getElementById('outline-content');
+        outlineContent.innerHTML = '<p class="text-gray-400">Loading outline...</p>';
+        try {
+            
+            const cleanPdfName = pdfName.trim();
+            const response = await fetch(`/api/outline/${encodeURIComponent(collection)}/${encodeURIComponent(cleanPdfName)}`);
+            const data = await response.json();
+            let html = `<h3 class="font-bold text-white mb-2">${data.title || 'Document'}</h3><ul class="space-y-2">`;
+            data.outline.forEach(item => {
+                let padding = item.level === 'H2' ? 'pl-4' : item.level === 'H3' ? 'pl-8' : '';
+                html += `<li class="outline-item cursor-pointer hover:text-blue-300 ${padding}" data-page="${item.page}">${item.text}</li>`;
+            });
+            html += '</ul>';
+            outlineContent.innerHTML = html;
+        } catch (error) { console.error("Failed to fetch outline:", error); }
+    }
+    
+    // --- EVENT LISTENERS ---
+    
+    document.getElementById('load-pdf-button').addEventListener('click', function() {
+        const selectedPdf = document.getElementById('pdf-select').value;
+        if (selectedPdf) {
+            loadPdfAndOutline(currentPDF.collection, selectedPdf);
+        }
+    });
+
+
+
+
+    
+
+    document.getElementById('collection-select').addEventListener('change', function(event) {
+    const selectedCollection = event.target.value;
+    currentPDF.collection = selectedCollection;
+
+    // Stop any active outline polling when the user changes collections.
+    if (outlinePollingInterval) {
+        clearInterval(outlinePollingInterval);
+        // Optional: Clear the processing status message
+        document.getElementById('file-list').innerHTML = '';
+    }
+
+
+    document.getElementById('adobe-dc-view').innerHTML = ''; // Clear the PDF viewer
+    document.getElementById('outline-content').innerHTML = ''; // Clear the outline
+
+
+    // Now, fetch the PDFs for the newly selected collection without interference.
+    populatePdfDropdown(selectedCollection);
+});
+
+    document.getElementById('outline-content').addEventListener('click', function(event) {
+        // Find the list item that was clicked on
+        const item = event.target.closest('.outline-item');
+
+        // Proceed only if an outline item was actually clicked
+        if (item) {
+            // Get the page number from the 'data-page' attribute in the HTML
+            const pageIndex = parseInt(item.getAttribute('data-page'));
+            
+            // Add a log to see what page number is being read
+            console.log(`Outline item clicked. Attempting to go to page index: ${pageIndex}`);
+
+            // Check if we got a valid number AND if the PDF APIs are ready
+            if (!isNaN(pageIndex) && pdfAPIs) {
+                // THE FIX: Use the gotoLocation API.
+                // We add +1 because your data is likely 0-based (page 0, 1, 2)
+                // but the Adobe API is 1-based (page 1, 2, 3).
+                pdfAPIs.gotoLocation(pageIndex + 1);
+            } else {
+                console.error("Could not navigate. Is the pageIndex a valid number and are the pdfAPIs ready?");
+            }
+        }
+    });
+
+
+
+
+document.getElementById('file-uploader').addEventListener('change', function(event) {
+    const files = event.target.files;
+    const selectedCollection = document.getElementById('collection-select').value;
+    
+    // We no longer need to read the topic, persona, or task here.
+
+    if (files.length === 0) {
+        this.value = null;
+        return;
+    }
+
+    if (!selectedCollection) {
+        alert("Please select or create a collection before uploading files.");
+        this.value = null;
+        return;
+    }
+    
+    const fileListDiv = document.getElementById('file-list');
+    fileListDiv.innerHTML = `<p>Uploading to '${selectedCollection}'...</p>`;
+    const formData = new FormData();
+
+    for (const file of files) {
+        formData.append('files', file);
+    }
+    formData.append('collection', selectedCollection);
+    
+    // We no longer append topic, persona, or task to the form data.
+
+    fetch(`/api/upload`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error) });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Upload complete, starting polling:', data);
+        // We only need to poll for outlines now. The indexing happens in the background.
+        startPollingForOutlines(data.collection_id);
+    })
+    .catch(error => {
+        console.error('Upload failed:', error);
+        fileListDiv.innerHTML = `<p class="text-red-500 mt-2">Upload failed: ${error.message}</p>`;
+        this.value = null;
+    });
+});
+   
+
+
+
+
+
+
+function startPollingForOutlines(collectionId) {
+    const fileListDiv = document.getElementById('file-list');
+    const pdfSelect = document.getElementById('pdf-select');
+    let isFirstDocumentLoaded = false;
+
+    if (outlinePollingInterval) {
+        clearInterval(outlinePollingInterval);
+    }
+    
+    outlinePollingInterval = setInterval(() => {
+        fetch(`/api/outlines/status/${collectionId}`)
+            .then(response => response.json())
+            .then(status => {
+                fileListDiv.innerHTML = `<p class="text-yellow-400">Processing... (${status.processed_count} / ${status.total_files} complete)</p>`;
+                
+                // --- THIS IS THE NEW, SMARTER LOGIC ---
+                // Get a list of documents already in the dropdown
+                const existingOptions = new Set(Array.from(pdfSelect.options).map(opt => opt.value));
+
+                // Loop through the processed files and only add ones that are new
+                status.processed_files.forEach(pdfName => {
+                    const pdfFileName = `${pdfName}.pdf`;
+                    if (!existingOptions.has(pdfFileName)) {
+                        const option = document.createElement('option');
+                        option.value = pdfFileName;
+                        option.textContent = pdfFileName;
+                        pdfSelect.appendChild(option);
+                    }
+                });
+
+
+                if (status.processed_count > 0 && !isFirstDocumentLoaded) {
+                    isFirstDocumentLoaded = true;
+                    const firstReadyPdf = `${status.processed_files[0]}.pdf`;
+                    loadPdfAndOutline(collectionId, firstReadyPdf);
+                }
+
+                if (status.processed_count >= status.total_files && status.total_files > 0) {
+                    clearInterval(outlinePollingInterval);
+                    fileListDiv.innerHTML = `<p class="text-green-400">All ${status.total_files} documents are ready!</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Polling failed:', error);
+                clearInterval(outlinePollingInterval);
+            });
+    }, 2000);
+}
+ 
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM is ready. Populating collections...");
+    populateCollectionDropdown();
+    
+    // This listener makes the "Find Related Insights" button work
+    document.getElementById('analyze-selection-btn').addEventListener('click', getInsightsForSelection);
+
+
+    document.getElementById('create-collection-btn').addEventListener('click', function() {
+        // This can be a call to a separate createCollection() function if you prefer
+        const nameInput = document.getElementById('new-collection-name');
+        const newCollectionName = nameInput.value.trim();
+
+        if (!newCollectionName) {
+            alert('Please enter a name for the new collection.');
+            return;
+        }
+
+        fetch(`/api/collections/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newCollectionName })
+        })
+        .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.error) }))
+        .then(data => {
+            // We already have the new collection name from the server's response
+    const newCollectionName = data.collectionName;
+
+    // Repopulate the dropdown to include the new name
+    populateCollectionDropdown().then(() => {
+        // This promise ensures the dropdown is fully populated before we continue
+                const collectionSelect = document.getElementById('collection-select');
+                
+                // 1. Set the dropdown's value to the new collection
+                collectionSelect.value = newCollectionName;
+                
+                // 2. THIS IS THE FIX: Manually trigger the 'change' event
+                // This tells the app to load the (empty) PDF list for the new collection.
+                collectionSelect.dispatchEvent(new Event('change'));
+
+                // 3. Clear the input field
+                nameInput.value = '';
+            });
+        })
+        .catch(error => {
+            console.error('Failed to create collection:', error);
+            alert(`Could not create collection: ${error.message}`);
+        });
+    });
+   
+});
+
+
+
+
+
+
+function getInsightsForSelection() {
+    const analyzeButton = document.getElementById('analyze-selection-btn');
+    if (!pdfAPIs) { /* ... */ }
+
+    const resultsDiv = document.getElementById('search-results-content');
+    const secondaryActionsContainer = document.getElementById('secondary-actions-container');
+
+    analyzeButton.textContent = 'Analyzing...';
+    analyzeButton.disabled = true;
+
+    resultsDiv.innerHTML = '<p class="text-yellow-400">Finding relevant sections...</p>';
+    secondaryActionsContainer.classList.add('hidden'); // Hide old actions
+
+    pdfAPIs.getSelectedContent()
+        .then(result => {
+            if (!result || !result.data) { throw new Error("No text selected."); }
+            const selectedText = result.data;
+            return fetch(`/api/query-by-selection`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: selectedText, collection: currentPDF.collection, current_doc: currentPDF.name })
+            });
+        })
+        .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.error) }))
+        .then(result => {
+            let resultsHTML = `
+                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                    <p class="text-base font-bold text-blue-300 mb-2">Synthesized Insights:</p>
+                    <p class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">${result.summary}</p>
+                </div>
+            `;
+            if (result.sources && result.sources.length > 0) {
+                resultsHTML += '<h3 class="text-lg font-bold text-blue-300 mt-4 mb-2">Sources:</h3><ul class="space-y-3">';
+                result.sources.forEach(item => {
+                    resultsHTML += `<li class="p-3 bg-gray-900 rounded-lg border border-gray-700 cursor-pointer hover:border-cyan-400 analysis-link" data-document="${item.document}" data-page="${item.page}"><p class="font-semibold text-gray-200">${item.title}</p><p class="text-sm text-gray-400 mt-2">${item.snippet}</p><p class="text-xs text-gray-500 mt-1">Source: ${item.document} (Page ${item.page+1})</p></li>`;
+                });
+                resultsHTML += '</ul>';
+            }
+            resultsDiv.innerHTML = resultsHTML;
+            currentAnalysisResult = result;
+            setupSecondaryActions(); // Activate the new UI
+        })
+        .catch(error => {
+            console.error("Analysis process failed:", error);
+            resultsDiv.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+        })
+        .finally(() => {
+            analyzeButton.textContent = 'Find Related Insights';
+            analyzeButton.disabled = false;
+        });
+}
+
+
+
+
+function setupSecondaryActions() {
+    const container = document.getElementById('secondary-actions-container');
+    container.classList.remove('hidden'); // Show the whole tab section
+
+    // --- Tab Content and Buttons ---
+    const insightsArea = document.getElementById('insights-content-area');
+    const podcastArea = document.getElementById('podcast-content-area');
+    const insightsTab = document.getElementById('show-insights-tab');
+    const podcastTab = document.getElementById('show-podcast-tab');
+
+    // --- Initial State ---
+    // Show the insights tab by default
+    showTab('insights');
+    
+    // Set up the buttons to appear in their respective tabs
+    insightsArea.innerHTML = `<button id="get-insights-btn" class="w-full flex items-center justify-center space-x-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-md transition-colors"><span>💡</span><span>Generate Deeper Insights</span></button>`;
+    podcastArea.innerHTML = `<button id="get-podcast-btn" class="w-full flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition-colors"><span>🎙️</span><span>Create Audio Podcast</span></button>`;
+
+    // --- Attach Event Listeners ---
+    document.getElementById('get-insights-btn').onclick = generateInsights;
+    document.getElementById('get-podcast-btn').onclick = generatePodcast;
+    insightsTab.onclick = () => showTab('insights');
+    podcastTab.onclick = () => showTab('podcast');
+}
+
+function showTab(tabName) {
+    const insightsArea = document.getElementById('insights-content-area');
+    const podcastArea = document.getElementById('podcast-content-area');
+    const insightsTab = document.getElementById('show-insights-tab');
+    const podcastTab = document.getElementById('show-podcast-tab');
+
+    if (tabName === 'insights') {
+        insightsArea.classList.remove('hidden');
+        podcastArea.classList.add('hidden');
+        insightsTab.classList.add('text-white', 'border-cyan-400');
+        podcastTab.classList.remove('text-white', 'border-purple-400');
+    } else { // podcast
+        podcastArea.classList.remove('hidden');
+        insightsArea.classList.add('hidden');
+        podcastTab.classList.add('text-white', 'border-purple-400');
+        insightsTab.classList.remove('text-white', 'border-cyan-400');
+    }
+}
+
+function generateInsights() {
+    if (!currentAnalysisResult) return;
+    const { summary, sources } = currentAnalysisResult;
+    const fullContext = `${summary}\n\n---\n\n${sources.map(s => s.snippet).join("\n\n")}`;
+    const insightsArea = document.getElementById('insights-content-area');
+
+    insightsArea.innerHTML = '<p class="text-yellow-400">Generating deeper insights...</p>';
+
+    fetch(`/api/insights`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: fullContext })
+    })
+    .then(res => res.ok ? res.json() : res.json().then(err => { throw new Error(err.error) }))
+    .then(data => {
+        const formattedHTML = data.insight.replace(/\*\*(.*?)\*\*/g, '<p class="font-bold text-blue-300 mt-4 mb-2">$1</p>').replace(/\n/g, '<br>');
+        insightsArea.innerHTML = formattedHTML;
+    })
+    .catch(err => { insightsArea.innerHTML = `<p class="text-red-500">${err.message}</p>`; });
+}
+
+
+function generatePodcast() {
+    if (!currentAnalysisResult) return;
+    
+    const podcastArea = document.getElementById('podcast-content-area');
+    const insightsArea = document.getElementById('insights-content-area');
+    const insightsContent = insightsArea.innerText;
+    
+    // Start with the initial summary as the base text
+    let textToSpeak = currentAnalysisResult.summary; 
+
+    // Check if the insights area has been populated with generated content
+    // We check for a button to see if it's still in its initial state.
+    if (insightsArea.querySelector('button') === null && insightsContent && insightsContent.length > 20) {
+        console.log("Podcast is using summary + deeper insights.");
+        // Combine the summary and the insights for a richer podcast
+        textToSpeak += "\n\nHere are some deeper insights on that topic:\n\n" + insightsContent;
+    } else {
+        console.log("Podcast is using only the initial summary.");
+    }
+    
+    const collectionName = currentPDF.collection;
+
+    podcastArea.innerHTML = '<p class="text-yellow-400">Generating audio podcast...</p>';
+
+    fetch(`/api/podcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToSpeak, collection: collectionName })
+    })
+    .then(res => res.ok ? res.json() : res.json().then(err => { throw new Error(err.error) }))
+    .then(data => {
+        // The backend URL is relative, so we need to prepend the base API URL
+        const fullAudioUrl = `${data.audioUrl}`; 
+        podcastArea.innerHTML = `<audio controls autoplay class="w-full"><source src="${fullAudioUrl}" type="audio/mpeg"></audio>`;
+    })
+    .catch(err => { podcastArea.innerHTML = `<p class="text-red-500">${err.message}</p>`; });
+}
+
+
+
+//  Event listener for clicking on sources
+document.getElementById('search-results-content').addEventListener('click', function(event) {
+    const linkElement = event.target.closest('.analysis-link');
+    if (linkElement) {
+        const docName = linkElement.getAttribute('data-document');
+        const pageNum = parseInt(linkElement.getAttribute('data-page'), 10);
+        if (docName && !isNaN(pageNum)) {
+            loadPdfAndOutline(currentPDF.collection, docName, pageNum + 1);
+        }
+    }
+});
+
+
+
+</script>
+
+
+</body>
+</html>

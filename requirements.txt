@@ -1,0 +1,18 @@
+# Flask and Web Server
+Flask==3.0.3
+Flask-Cors==4.0.1
+python-dotenv==1.0.1
+
+# PDF Processing Stack (for app.py and section_splitter.py)
+PyMuPDF==1.24.1
+pdfplumber==0.11.1
+camelot-py[cv]==0.11.0
+pandas==2.2.2
+numpy==1.26.4
+
+# LangChain and API Providers
+langchain==0.1.20
+langchain-core==0.1.52
+langchain-google-genai==1.0.3
+google-cloud-texttospeech==2.16.2
+requests==2.31.0
