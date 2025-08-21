@@ -63,6 +63,8 @@ The application supports two authentication methods for the Gemini API, as discu
 
 This is the primary method, using the GOOGLE\_APPLICATION\_CREDENTIALS file.
 
+Important:
+ADOBE_EMBED_API_KEY = "f780d2cbc0ed4491aef9deaae4e00171"
 **PowerShell**
 
 ```powershell
